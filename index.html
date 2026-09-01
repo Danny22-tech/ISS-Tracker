@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>ISS TRACKER — SPACE LIVE</title>
+  <meta name="description" content="Suivez la Station spatiale internationale en temps réel avec carte terrestre, météo locale et estimation de visibilité." />
+  <meta property="og:title" content="ISS TRACKER — SPACE LIVE" />
+  <meta property="og:description" content="Suivez la Station spatiale internationale en temps réel avec carte terrestre, météo locale et estimation de visibilité." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#070913" />
+  
+  <!-- Feuille de style CSS moderne -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Canevas d'étoiles spatiales en arrière-plan -->
+  <canvas id="starfield"></canvas>
+
+  <!-- Conteneur des notifications Toast non-intrusives -->
+  <div id="toast-container"></div>
+
+  <!-- ==========================================================================
+       1. ÉCRAN DE BIENVENUE (ONBOARDING AU PREMIER LANCEMENT)
+       ========================================================================== -->
+  <div id="welcome-screen">
+    <div class="welcome-card">
+      <div class="welcome-hero-icon">🛰️</div>
+      <h1 class="welcome-title" data-i18n="appTitle">ISS TRACKER</h1>
+      <p class="welcome-subtitle" data-i18n="appSubtitle">Suivez la Station spatiale internationale en temps réel.</p>
+
+      <div class="form-group">
+        <label class="form-label" for="welcome-country-select" data-i18n="chooseCountry">🌍 Choisissez votre pays</label>
+        <select id="welcome-country-select" class="form-select"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="welcome-lang-select" data-i18n="chooseLanguage">🌐 Choisissez votre langue</label>
+        <select id="welcome-lang-select" class="form-select">
+          <option value="fr">🇫🇷 Français</option>
+          <option value="en">🇬🇧 English</option>
+          <option value="es">🇪🇸 Español</option>
+        </select>
+      </div>
+
+      <button id="welcome-start-btn" class="btn-primary" data-i18n="startBtn">
+        🚀 COMMENCER
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       STRUCTURE DE L'APPLICATION PRINCIPALE
+       ========================================================================== -->
+  <div id="app-container">
+    
+    <!-- EN-TÊTE / HEADER AVEC STATUT CONNEXION -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <span class="brand-icon">🛰️</span>
+        <div>
+          <span class="brand-title">ISS TRACKER</span>
+          <span class="brand-badge">LIVE</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="header-status-pill" class="header-status-pill">
+          <span class="status-dot"></span>
+          <span id="header-status-text" data-i18n="onlineStatus">🟢 En ligne</span>
+        </div>
+        <button id="header-theme-toggle" class="icon-btn" title="Changer le thème">☀️</button>
+      </div>
+    </header>
+
+    <!-- ======================================================================
+         PAGE 1 : TABLEAU DE BORD (ACCUEIL)
+         ====================================================================== -->
+    <main id="screen-home" class="screen active">
+      
+      <!-- CARTE TERRESTRE AVEC TERRE.PNG & POINT ISS -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🌍</span>
+            <span data-i18n="navISS">Carte Orbitale en Direct</span>
+          </h2>
+          <span class="card-badge">100% LIVE</span>
+        </div>
+
+        <div class="earth-map-container" id="map-container">
+          <!-- Image de la Terre fournie localement -->
+          <img src="terre.png" alt="Planète Terre" class="earth-map-img" id="earth-img" />
+
+          <!-- Point ISS Rouge Lumineux avec animation de pulsation -->
+          <div class="iss-marker" id="iss-map-marker">
+            <div class="iss-pulse-ring"></div>
+            <div class="iss-dot"></div>
+            <div class="iss-label-tag">🔴 ISS</div>
+          </div>
+
+          <!-- Point Utilisateur Bleu -->
+          <div class="user-marker" id="user-map-marker">
+            <div class="user-dot"></div>
+            <div class="user-label-tag">📍 Vous</div>
+          </div>
+
+          <div class="map-overlay-info">
+            <span>Projection Cylindrique Equirectangulaire</span>
+            <span>Alt: <span class="iss-alt-val">~420 km</span></span>
+          </div>
+        </div>
+
+        <!-- Coordonnées rapides ISS -->
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">🛰️ <span data-i18n="latitude">Latitude</span></span>
+            <span class="stat-value highlight iss-lat-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">🛰️ <span data-i18n="longitude">Longitude</span></span>
+            <span class="stat-value highlight iss-lon-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">🚀 <span data-i18n="speed">Vitesse</span></span>
+            <span class="stat-value speed iss-speed-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">📏 <span data-i18n="distanceTitle">Distance ISS → Vous</span></span>
+            <span class="stat-value highlight iss-dist-val">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION PROBABILITÉ DE VISIBILITÉ / PASSAGE -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🔭</span>
+            <span data-i18n="visibilityTitle">Probabilité de Visibilité</span>
+          </h2>
+        </div>
+
+        <div id="visibility-banner" class="visibility-banner low">
+          <span class="visibility-icon">🔭</span>
+          <div class="visibility-text-group">
+            <div id="visibility-headline" class="visibility-headline" data-i18n="visibilityLow">🔴 Probabilité faible</div>
+            <div id="visibility-desc" class="visibility-desc" data-i18n="visibilityLowDesc">Analyse en cours...</div>
+          </div>
+        </div>
+
+        <!-- Décomposition algorithmique en étapes transparentes -->
+        <div class="algorithm-steps">
+          <div class="step-row">
+            <span class="step-pill" data-i18n="step1Distance">ÉTAPE 1 — DISTANCE</span>
+            <span class="step-content" id="step-dist-text">Calcul en cours...</span>
+          </div>
+          <div class="step-row">
+            <span class="step-pill" data-i18n="step2Weather">ÉTAPE 2 — MÉTÉO</span>
+            <span class="step-content" id="step-weather-text">Conditions atmosphériques...</span>
+          </div>
+        </div>
+
+        <div class="estimation-disclaimer" data-i18n="disclaimerText">
+          ⚠️ Estimation simplifiée : Ne constitue pas une prédiction astronomique officielle. L'observation réelle dépend de l'heure locale et des angles orbitaux.
+        </div>
+      </div>
+
+      <!-- POSITION DE L'UTILISATEUR -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>📍</span>
+            <span data-i18n="userPositionTitle">Votre Position</span>
+          </h2>
+          <button class="btn-locate btn-gps-locate" data-i18n="locateMeBtn">📍 Me localiser (GPS)</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">🌍 <span data-i18n="country">Pays</span></span>
+            <span class="stat-value user-country-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">📐 <span data-i18n="latitude">Latitude</span></span>
+            <span class="stat-value user-lat-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">📐 <span data-i18n="longitude">Longitude</span></span>
+            <span class="stat-value user-lon-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">☀️ <span data-i18n="skyState">Ciel</span></span>
+            <span class="stat-value weather-sky-val">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MÉTÉO LOCALE -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🌤️</span>
+            <span data-i18n="weatherTitle">Météo Locale</span>
+          </h2>
+          <span class="card-badge">Open-Meteo</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">🌡️ <span data-i18n="temperature">Température</span></span>
+            <span class="stat-value weather-temp-val">--</span>
+            <span class="stat-subtext"><span data-i18n="apparentTemp">Ressenti</span>: <span class="weather-feels-val">--</span></span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">💧 <span data-i18n="humidity">Humidité</span></span>
+            <span class="stat-value weather-hum-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">💨 <span data-i18n="windSpeed">Vent</span></span>
+            <span class="stat-value weather-wind-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">☁️ <span data-i18n="weatherConditions">Conditions</span></span>
+            <span class="stat-value weather-cond-val" style="font-size: 0.95rem;">--</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ======================================================================
+         PAGE 2 : DÉTAILS TELEMETRIE ISS
+         ====================================================================== -->
+    <section id="screen-iss" class="screen">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🛰️</span>
+            <span data-i18n="issPositionTitle">POSITION DE L'ISS</span>
+          </h2>
+          <span class="card-badge">25544 (NORAD)</span>
+        </div>
+
+        <div class="stats-grid" style="margin-bottom: 14px;">
+          <div class="stat-box">
+            <span class="stat-label"><span data-i18n="latitude">Latitude</span></span>
+            <span class="stat-value highlight iss-lat-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label"><span data-i18n="longitude">Longitude</span></span>
+            <span class="stat-value highlight iss-lon-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label"><span data-i18n="altitude">Altitude</span></span>
+            <span class="stat-value highlight iss-alt-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label"><span data-i18n="speed">Vitesse</span></span>
+            <span class="stat-value speed iss-speed-val">--</span>
+          </div>
+        </div>
+
+        <div class="stat-box" style="margin-bottom: 12px;">
+          <span class="stat-label">📏 <span data-i18n="distanceTitle">Distance ISS → Vous</span></span>
+          <span class="stat-value highlight iss-dist-val" style="font-size: 1.4rem;">--</span>
+          <span class="stat-subtext">Calculée avec la formule de Haversine incluant la composante altitudinale.</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">🕒 <span data-i18n="lastUpdate">Dernière mise à jour</span></span>
+          <span class="stat-value iss-update-val" style="font-size: 0.95rem;">--</span>
+          <span class="stat-subtext">Actualisation automatique toutes les 5 secondes</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">🔬 À propos de l'orbite</h3>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+          La Station spatiale internationale tourne autour de la Terre à environ <strong>27 600 km/h</strong>, réalisant une révolution complète toutes les <strong>90 à 93 minutes</strong>. Elle accomplit ainsi près de 16 fois le tour de la Terre par jour.
+        </p>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         PAGE 3 : MÉTÉO DÉTAILLÉE
+         ====================================================================== -->
+    <section id="screen-weather" class="screen">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🌤️</span>
+            <span data-i18n="weatherTitle">Météo Locale</span>
+          </h2>
+          <span class="card-badge user-country-val">--</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">🌡️ <span data-i18n="temperature">Température</span></span>
+            <span class="stat-value weather-temp-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">🌡️ <span data-i18n="apparentTemp">Ressenti</span></span>
+            <span class="stat-value weather-feels-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">💧 <span data-i18n="humidity">Humidité</span></span>
+            <span class="stat-value weather-hum-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">💨 <span data-i18n="windSpeed">Vent</span></span>
+            <span class="stat-value weather-wind-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">🌧️ <span data-i18n="rainProb">Probabilité de pluie</span></span>
+            <span class="stat-value weather-rain-val">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">☀️ <span data-i18n="skyState">État du ciel</span></span>
+            <span class="stat-value weather-sky-val">--</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <button class="btn-locate btn-gps-locate" style="width: 100%; justify-content: center;" data-i18n="locateMeBtn">
+            📍 Synchroniser avec ma position GPS
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         PAGE 4 : GALERIE SPATIALE
+         ====================================================================== -->
+    <section id="screen-space" class="screen">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🌌</span>
+            <span data-i18n="spaceGalleryTitle">SPACE GALLERY</span>
+          </h2>
+          <span class="card-badge">NASA / ESA / HD</span>
+        </div>
+
+        <div class="space-gallery-wrapper">
+          <img id="space-gallery-img" src="terre.png" alt="Espace" class="gallery-img" />
+          <div class="gallery-overlay">
+            <h3 id="space-gallery-title" class="gallery-title">Planète Terre</h3>
+            <p id="space-gallery-desc" class="gallery-desc">Vue satellite globale de la Terre</p>
+          </div>
+        </div>
+
+        <div class="gallery-controls">
+          <button id="btn-next-space-image" class="btn-secondary" data-i18n="newImageBtn">
+            🔄 Nouvelle image
+          </button>
+        </div>
+        <p style="margin-top: 8px; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+          Rotation automatique programmée toutes les 30 minutes.
+        </p>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         PAGE 5 : PARAMÈTRES & CONFIGURATION DES UNITÉS
+         ====================================================================== -->
+    <section id="screen-settings" class="screen">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>⚙️</span>
+            <span data-i18n="settingsTitle">PARAMÈTRES</span>
+          </h2>
+        </div>
+
+        <form id="settings-form">
+          <div class="form-group">
+            <label class="form-label" for="settings-lang-select" data-i18n="chooseLanguage">🌐 Langue</label>
+            <select id="settings-lang-select" class="form-select">
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+              <option value="es">🇪🇸 Español</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-country-select" data-i18n="chooseCountry">🌍 Pays de référence</label>
+            <select id="settings-country-select" class="form-select"></select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-theme-select" data-i18n="themeMode">🌙 Thème d'affichage</label>
+            <select id="settings-theme-select" class="form-select">
+              <option value="dark">🌙 Mode sombre (Spatial)</option>
+              <option value="light">☀️ Mode clair (Céleste)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-unit-distance" data-i18n="unitDistance">📏 Distance</label>
+            <select id="settings-unit-distance" class="form-select">
+              <option value="km">Kilomètres (km)</option>
+              <option value="m">Mètres (m)</option>
+              <option value="miles">Miles (mi)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-unit-speed" data-i18n="unitSpeed">🚀 Vitesse</label>
+            <select id="settings-unit-speed" class="form-select">
+              <option value="km/h">km/h</option>
+              <option value="m/s">m/s</option>
+              <option value="mph">mph</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-unit-altitude" data-i18n="unitAltitude">📐 Altitude</label>
+            <select id="settings-unit-altitude" class="form-select">
+              <option value="km">Kilomètres (km)</option>
+              <option value="m">Mètres (m)</option>
+              <option value="miles">Miles (mi)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="settings-unit-temp" data-i18n="unitTemp">🌡️ Température</label>
+            <select id="settings-unit-temp" class="form-select">
+              <option value="C">Celsius (°C)</option>
+              <option value="F">Fahrenheit (°F)</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-primary" data-i18n="saveSettingsBtn">
+            💾 Enregistrer
+          </button>
+        </form>
+
+        <button id="btn-clear-data" class="btn-danger" data-i18n="clearDataBtn">
+          🗑️ Effacer mes données
+        </button>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         PAGE 6 : À PROPOS
+         ====================================================================== -->
+    <section id="screen-about" class="screen">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>ℹ️</span>
+            <span data-i18n="aboutTitle">À PROPOS DE ISS TRACKER</span>
+          </h2>
+        </div>
+
+        <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.9rem; line-height: 1.6;" data-i18n="aboutDesc">
+          ISS Tracker permet de suivre la position de la Station spatiale internationale et d'afficher des informations sur sa position, sa distance, la météo locale et une estimation des conditions d'observation.
+        </p>
+
+        <div class="stat-box" style="margin-bottom: 14px;">
+          <span class="stat-label" data-i18n="technologiesTitle">Technologies :</span>
+          <p style="font-size: 0.85rem; color: var(--text-primary); margin-top: 4px;" data-i18n="techList">
+            HTML, CSS, JavaScript, APIs spatiales (WhereTheISS), API météo (Open-Meteo), LocalStorage.
+          </p>
+        </div>
+
+        <div class="estimation-disclaimer" data-i18n="aboutDisclaimer">
+          Les données de position et de météo dépendent des services externes utilisés par l'application.
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         NAVBAR INFÉRIEURE FIXE (MOBILE & ANDROID APK)
+         ====================================================================== -->
+    <nav class="bottom-navbar">
+      <button class="nav-item active" data-screen="home">
+        <span class="nav-icon">🏠</span>
+        <span data-i18n="navHome">Accueil</span>
+      </button>
+      <button class="nav-item" data-screen="iss">
+        <span class="nav-icon">🛰️</span>
+        <span data-i18n="navISS">ISS</span>
+      </button>
+      <button class="nav-item" data-screen="weather">
+        <span class="nav-icon">🌤️</span>
+        <span data-i18n="navWeather">Météo</span>
+      </button>
+      <button class="nav-item" data-screen="space">
+        <span class="nav-icon">🌌</span>
+        <span data-i18n="navSpace">Espace</span>
+      </button>
+      <button class="nav-item" data-screen="settings">
+        <span class="nav-icon">⚙️</span>
+        <span data-i18n="navSettings">Paramètres</span>
+      </button>
+      <button class="nav-item" data-screen="about">
+        <span class="nav-icon">ℹ️</span>
+        <span data-i18n="navAbout">À propos</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- ==========================================================================
+       MODALE DE CONFIRMATION DE SUPPRESSION (AUCUN CONFIRM NATIF)
+       ========================================================================== -->
+  <div id="clear-data-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-icon">🗑️</div>
+      <h3 class="modal-title" data-i18n="clearDataConfirmTitle">Effacer les données ?</h3>
+      <p class="modal-desc" data-i18n="clearDataConfirmDesc">
+        Toutes vos préférences sauvegardées (pays, langue, unités) seront réinitialisées.
+      </p>
+      <div class="modal-buttons">
+        <button id="modal-cancel-clear" class="btn-modal-cancel" data-i18n="btnCancel">Annuler</button>
+        <button id="modal-confirm-clear" class="btn-modal-confirm" data-i18n="btnConfirm">Confirmer la suppression</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script JavaScript modulaire -->
+  <script src="script.js"></script>
+</body>
+</html>
